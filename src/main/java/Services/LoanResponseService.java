@@ -5,6 +5,7 @@
  */
 package Services;
 
+import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Channel;
@@ -26,19 +27,19 @@ import javax.jws.WebParam;
 @WebService(serviceName = "LoanResponseService")
 public class LoanResponseService {
 
-    
-
     /**
      * Web service operation
      *
-     * @param i
-     * @param j
-     * @param p
-     * @param l
+     * @param snn
+     * @param cs
+     * @param loanAmount
+     * @param lDate
+     * @param responseQueue
+     * @param correlationId
      * @return
      */
     @WebMethod(operationName = "loanResponse")
-    public boolean loanResponse(@WebParam(name = "ssn") int i, @WebParam(name = "creditScore") int j, @WebParam(name = "loanAmount") double p, @WebParam(name = "loanDuration") Date l,@WebParam(name = "responseQueue") String responseQueue) {
+    public boolean loanResponse(@WebParam(name = "ssn") int snn, @WebParam(name = "creditScore") int cs, @WebParam(name = "loanAmount") double loanAmount, @WebParam(name = "loanDuration") Date lDate, @WebParam(name = "responseQueue") String responseQueue, @WebParam(name = "correlationId") String correlationId) {
         //TODO write your implementation code here:
         double rangeMin = 1.5;
         double rangeMax = 7.3;
@@ -51,13 +52,15 @@ public class LoanResponseService {
             connection = factory.newConnection();
             Channel channel = connection.createChannel();
 
-            channel.exchangeDeclare(responseQueue, "direct");
+            channel.exchangeDeclare(responseQueue, "fanout");
 
-            String routingKey = "info";
-            String message = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><LoanResponse>    <interestRate>"+randomValue+"</interestRate>    <ssn>"+j+"</ssn> </LoanResponse> ";
-
-            channel.basicPublish(responseQueue, routingKey, null, message.getBytes());
-           // System.out.println(" [x] Sent '" + routingKey + "':'" + message + "'");
+            String routingKey = "";
+            String message = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><LoanResponse>    <interestRate>" + randomValue + "</interestRate>    <ssn>" + snn + "</ssn> </LoanResponse> ";
+            BasicProperties replyProps = new BasicProperties.Builder()
+                    .correlationId(correlationId)
+                    .build();
+            channel.basicPublish(responseQueue, routingKey, replyProps, message.getBytes());
+            // System.out.println(" [x] Sent '" + routingKey + "':'" + message + "'");
 
             channel.close();
             connection.close();
